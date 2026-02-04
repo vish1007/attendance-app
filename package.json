@@ -1,0 +1,24 @@
+{
+  "name": "attendance-app",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "dependencies": {
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "electron": "^29.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.attendance.app",
+    "productName": "Attendance App",
+    "win": {
+      "target": "nsis"
+    },
+    "npmRebuild": false
+  }
+}
