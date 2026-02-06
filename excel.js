@@ -73,25 +73,20 @@ function createDate(date) {
   const range = XLSX.utils.decode_range(sheet["!ref"]);
   const headerRow = 0;
 
-  const formattedDate = formatDateDDMMYYYY(date);
-
   // 🔍 Check if date already exists
   for (let c = range.s.c; c <= range.e.c; c++) {
     const addr = XLSX.utils.encode_cell({ r: headerRow, c });
     const cell = sheet[addr];
-    if (cell && String(cell.v) === formattedDate) {
-      return -1; // attendance already taken (BLOCK MODE)
+    if (cell && String(cell.v) === date) {
+      return { colIndex: c, existed: true };
     }
   }
 
-  // ✅ Add new date safely
+  // ➕ Add new date column
   const newCol = range.e.c + 1;
   const newCellAddr = XLSX.utils.encode_cell({ r: headerRow, c: newCol });
 
-  sheet[newCellAddr] = {
-    t: "s",
-    v: formattedDate
-  };
+  sheet[newCellAddr] = { t: "s", v: date };
 
   sheet["!ref"] = XLSX.utils.encode_range({
     s: range.s,
@@ -100,8 +95,9 @@ function createDate(date) {
 
   XLSX.writeFile(workbook, filePath);
 
-  return newCol;
+  return { colIndex: newCol, existed: false };
 }
+
 
 
 function markAttendance(rowIndex, colIndex, value) {
@@ -110,10 +106,28 @@ function markAttendance(rowIndex, colIndex, value) {
   sheet[cell] = { t: "n", v: value };
   XLSX.writeFile(workbook, filePath);
 }
+function getAttendanceForDate(colIndex) {
+  const sheet = workbook.Sheets[sheetName];
+  const range = XLSX.utils.decode_range(sheet["!ref"]);
+  const attendance = {};
+
+  for (let r = 1; r <= range.e.r; r++) {
+    const addr = XLSX.utils.encode_cell({ r, c: colIndex });
+    const cell = sheet[addr];
+
+    if (cell && (cell.v === 1 || cell.v === 0)) {
+      attendance[r] = cell.v;
+    }
+  }
+
+  return attendance;
+}
 
 module.exports = {
   openExcel,
   getStudents,
   createDate,
-  markAttendance
+  markAttendance,
+  getAttendanceForDate
 };
+

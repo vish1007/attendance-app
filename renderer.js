@@ -86,44 +86,74 @@ document.getElementById("file").addEventListener("change", e => {
 document.getElementById("startBtn").addEventListener("click", start);
 
 function start() {
-  currentDate = document.getElementById("date").value;
-
-  if (!currentDate) {
-    alert("Select date");
+  const selectedDate = document.getElementById("date").value;
+  if (!selectedDate) {
+    alert("Please select a date");
     return;
   }
 
-  // 🔥 createDate now RETURNS column index
-  colIndex = window.api.createDate(currentDate);
-
-  if (colIndex === -1) {
-    alert("Attendance already taken");
-    return;
-  }
+  // 👇 IMPORTANT CHANGE
+  const result = window.api.createDate(selectedDate);
+  colIndex = result.colIndex;
 
   const students = window.api.getStudents();
-  render(students);
+  const previousAttendance = window.api.getAttendanceForDate(colIndex);
+
+  // 🔔 Date existed → ask confirmation
+  if (result.existed) {
+    const choice = confirm(
+      "Attendance already taken for this date.\n\nDo you want to update it?"
+    );
+
+    if (!choice) return;
+  }
+
+  // ✅ Always allow editing
+  render(students, previousAttendance);
 }
 function updateCounts() {
   let present = 0;
   let absent = 0;
 
-  Object.values(attendanceState).forEach(v => {
-    if (v === 1) present++;
-    if (v === 0) absent++;
-  });
+  for (const row in attendanceState) {
+    if (attendanceState[row] === 1) present++;
+    if (attendanceState[row] === 0) absent++;
+  }
 
-  document.getElementById("presentCount").textContent = present;
-  document.getElementById("absentCount").textContent = absent;
+  // If counter elements don't exist yet, create them
+  let counter = document.getElementById("counter");
+  if (!counter) {
+    counter = document.createElement("div");
+    counter.id = "counter";
+    counter.style.position = "fixed";
+    counter.style.right = "20px";
+    counter.style.top = "120px";
+    counter.style.background = "white";
+    counter.style.padding = "15px 20px";
+    counter.style.borderRadius = "12px";
+    counter.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
+    counter.style.fontSize = "18px";
+    counter.style.fontWeight = "600";
+
+    document.body.appendChild(counter);
+  }
+
+  counter.innerHTML = `
+    ✅ Present: ${present}<br>
+    ❌ Absent: ${absent}
+  `;
 }
 
-function render(data) {
+
+function render(data, previousAttendance = {}) {
   const container = document.getElementById("students");
   container.innerHTML = "";
   attendanceState = {};
   updateCounts();
 
   data.forEach((r, i) => {
+    const row = i + 1;
+
     const card = document.createElement("div");
     card.className = "student-card";
 
@@ -142,12 +172,27 @@ function render(data) {
     const presentBtn = card.querySelector(".present");
     const absentBtn = card.querySelector(".absent");
 
-    presentBtn.onclick = () => mark(i + 1, 1, presentBtn, absentBtn);
-    absentBtn.onclick = () => mark(i + 1, 0, presentBtn, absentBtn);
+    // ✅ THIS IS THE REQUIRED CHANGE
+    if (previousAttendance[row] === 1) {
+      presentBtn.classList.add("active");
+      attendanceState[row] = 1;
+    } 
+    else if (previousAttendance[row] === 0) {
+      absentBtn.classList.add("active");
+      attendanceState[row] = 0;
+    }
+
+    // Buttons still editable
+    presentBtn.onclick = () => mark(row, 1, presentBtn, absentBtn);
+    absentBtn.onclick = () => mark(row, 0, presentBtn, absentBtn);
 
     container.appendChild(card);
   });
+
+  updateCounts();
 }
+
+
 
 function mark(row, value, pBtn, aBtn) {
   if (colIndex === -1) return;

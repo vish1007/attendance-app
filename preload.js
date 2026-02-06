@@ -5,5 +5,6 @@ contextBridge.exposeInMainWorld("api", {
   openExcel: excel.openExcel,
   getStudents: excel.getStudents,
   createDate: excel.createDate,
-  markAttendance: excel.markAttendance
+  markAttendance: excel.markAttendance,
+  getAttendanceForDate: excel.getAttendanceForDate // ✅ ADD THIS
 });
