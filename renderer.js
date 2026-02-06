@@ -92,25 +92,28 @@ function start() {
     return;
   }
 
-  // 👇 IMPORTANT CHANGE
   const result = window.api.createDate(selectedDate);
   colIndex = result.colIndex;
 
   const students = window.api.getStudents();
   const previousAttendance = window.api.getAttendanceForDate(colIndex);
 
-  // 🔔 Date existed → ask confirmation
   if (result.existed) {
     const choice = confirm(
       "Attendance already taken for this date.\n\nDo you want to update it?"
     );
-
     if (!choice) return;
   }
 
-  // ✅ Always allow editing
   render(students, previousAttendance);
+
+  // 🔥 FORCE SHOW BULK BUTTONS
+  const bulk = document.getElementById("bulkControls");
+  if (bulk) {
+    bulk.style.display = "block";
+  }
 }
+
 function updateCounts() {
   let present = 0;
   let absent = 0;
@@ -217,3 +220,39 @@ function mark(row, value, pBtn, aBtn) {
   updateCounts();
 }
 
+window.addEventListener("DOMContentLoaded", () => {
+  const presentBtn = document.getElementById("markAllPresent");
+  const absentBtn = document.getElementById("markAllAbsent");
+
+  if (!presentBtn || !absentBtn) {
+    console.error("Bulk buttons not found in DOM");
+    return;
+  }
+
+  presentBtn.onclick = () => bulkMark(1);
+  absentBtn.onclick = () => bulkMark(0);
+});
+function bulkMark(value) {
+  if (colIndex === -1) return;
+
+  const cards = document.querySelectorAll(".student-card");
+
+  cards.forEach((card, index) => {
+    const row = index + 1;
+
+    const presentBtn = card.querySelector(".present");
+    const absentBtn = card.querySelector(".absent");
+
+    window.api.markAttendance(row, colIndex, value);
+    attendanceState[row] = value;
+
+    presentBtn.classList.remove("active");
+    absentBtn.classList.remove("active");
+
+    value === 1
+      ? presentBtn.classList.add("active")
+      : absentBtn.classList.add("active");
+  });
+
+  updateCounts();
+}

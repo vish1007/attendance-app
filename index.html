@@ -5,6 +5,58 @@
 
   <style>
     /* ===== GLOBAL ===== */
+    /* ===== BULK ACTION BUTTONS ===== */
+
+.bulk-actions {
+  max-width: 900px;
+  margin: 20px auto;
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+}
+
+.bulk-btn {
+  flex: 1;
+  padding: 16px 28px;
+  font-size: 20px;
+  font-weight: 600;
+  border-radius: 999px; /* pill shape */
+  border: none;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* ✅ MARK ALL PRESENT */
+.present-all {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+}
+
+.present-all:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(22, 163, 74, 0.45);
+}
+
+/* ❌ MARK ALL ABSENT */
+.absent-all {
+  background: linear-gradient(135deg, #ef4444, #b91c1c);
+  color: white;
+}
+
+.absent-all:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(185, 28, 28, 0.45);
+}
+
+/* Disabled state (optional) */
+.bulk-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
     body {
       font-family: "Segoe UI", sans-serif;
       margin: 0;
@@ -201,13 +253,24 @@
   </div>
 
   <!-- ===== CONTROLS ===== -->
+<div id="bulkControls" class="bulk-actions" style="display:none;">
+  <button id="markAllPresent" class="bulk-btn present-all">
+    ✅ Mark All Present
+  </button>
+
+  <button id="markAllAbsent" class="bulk-btn absent-all">
+    ❌ Mark All Absent
+  </button>
+</div>
+
+
   <div class="controls">
     <label>Select Excel File</label>
     <input type="file" id="file">
 
     <label>Select Date</label>
     <input type="date" id="date">
-
+   
     <button id="startBtn">Start Attendance</button>
   </div>
 
