@@ -1,0 +1,27 @@
+const { contextBridge, ipcRenderer } = require("electron");
+const excel = require("./excel");
+
+// ===== EXISTING API (DO NOT TOUCH) =====
+contextBridge.exposeInMainWorld("api", {
+  openExcel: excel.openExcel,
+  getStudents: excel.getStudents,
+  createDate: excel.createDate,
+  markAttendance: excel.markAttendance,
+  getAttendanceForDate: excel.getAttendanceForDate,
+  getAttendanceStats: excel.getAttendanceStats,
+
+  onOpenVoiceSettings: (callback) =>
+    ipcRenderer.on("open-voice-settings", callback)
+});
+
+// ===== GOOGLE DRIVE API =====
+contextBridge.exposeInMainWorld("drive", {
+  connect: () => ipcRenderer.invoke("drive-connect"),
+  upload: (filePath) => ipcRenderer.invoke("drive-upload", filePath)
+});
+
+// ===== APP STATE (LAST FILE) =====
+contextBridge.exposeInMainWorld("appState", {
+  setLastFile: (filePath) =>
+    ipcRenderer.invoke("set-last-file", filePath)
+});

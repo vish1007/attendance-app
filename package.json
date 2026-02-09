@@ -1,0 +1,35 @@
+{
+  "name": "attendance-app",
+  "version": "3.0.0",
+  "author": "Vishal Singh",
+  "description": "Attendance Management System developed by Your Name",
+  "homepage": "https://github.com/vish1007/attendance-app",
+  "license": "Proprietary",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "dependencies": {
+    "googleapis": "^171.4.0",
+    "open": "^11.0.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "electron": "^29.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+  "appId": "com.attendance.app",
+  "productName": "Attendance App",
+  "files": [
+    "**/*",
+    "config.js"
+  ],
+  "win": {
+    "target": "nsis"
+  },
+  "npmRebuild": false
+}
+
+}
