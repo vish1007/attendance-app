@@ -4,68 +4,75 @@ const fs = require("fs");
 let workbook;
 let filePath;
 let sheetName;
+function fixHeaderDatesToText() {
+  if (!workbook || !sheetName) return;
+
+  const sheet = workbook.Sheets[sheetName];
+  if (!sheet) return;
+
+  const range = XLSX.utils.decode_range(sheet["!ref"]);
+  const headerRow = 0;
+
+  for (let c = range.s.c; c <= range.e.c; c++) {
+    const addr = XLSX.utils.encode_cell({ r: headerRow, c });
+    const cell = sheet[addr];
+
+    if (cell && cell.t === "n") {
+      const d = XLSX.SSF.parse_date_code(cell.v);
+      const formatted = `${String(d.d).padStart(2,"0")}-${String(d.m).padStart(2,"0")}-${d.y}`;
+
+      sheet[addr] = { t: "s", v: formatted };
+    }
+  }
+
+  XLSX.writeFile(workbook, filePath);
+}
 
 function openExcel(path) {
   filePath = path;
+
+  // ✅ FIRST load workbook
   workbook = XLSX.readFile(filePath);
-  sheetName = workbook.SheetNames[0]; // ✅ FIRST & ONLY SHEET
+  sheetName = workbook.SheetNames[0]; // FIRST & ONLY SHEET
+
+  // ✅ THEN clean header dates
+  fixHeaderDatesToText();
 }
+
+
+// ------------------ HELPERS ------------------
+
+
+function formatDateDDMMYYYY(input) {
+  const d = new Date(input);
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${dd}-${mm}-${yyyy}`;
+}
+
+function normalizeHeaderCell(cell) {
+  if (!cell) return "";
+
+  // If Excel converted date → number
+  if (cell.t === "n") {
+    const d = XLSX.SSF.parse_date_code(cell.v);
+    return `${String(d.d).padStart(2, "0")}-${String(d.m).padStart(2, "0")}-${d.y}`;
+  }
+
+  // Otherwise treat as string
+  return String(cell.v);
+}
+
+// ------------------ CORE LOGIC ------------------
 
 function getStudents() {
   const sheet = workbook.Sheets[sheetName];
-  const data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+  const data = XLSX.utils.sheet_to_json(sheet, {
+  header: 1,
+  blankrows: false
+});
   return data.slice(1); // skip header
-}
-
-// function createDate(date) {
-//   const sheet = workbook.Sheets[sheetName];
-//   const data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-
-//   if (data[0].includes(date)) return true;
-
-//   data[0].push(date);
-//   XLSX.utils.sheet_add_aoa(sheet, [data[0]], { origin: "A1" });
-//   XLSX.writeFile(workbook, filePath);
-//   return false;
-// }
-// function createDate(date) {
-//   const sheet = workbook.Sheets[sheetName];
-
-//   // Get sheet range
-//   const range = XLSX.utils.decode_range(sheet["!ref"]);
-//   const headerRow = 0;
-
-//   // 🔍 Check if date already exists
-//   for (let c = range.s.c; c <= range.e.c; c++) {
-//     const addr = XLSX.utils.encode_cell({ r: headerRow, c });
-//     const cell = sheet[addr];
-//     if (cell && String(cell.v) === date) {
-//       return -1; // attendance already taken (BLOCK MODE)
-//     }
-//   }
-
-//   // ✅ Add ONLY ONE new header cell
-//   const newCol = range.e.c + 1;
-//   const newCellAddr = XLSX.utils.encode_cell({ r: headerRow, c: newCol });
-
-//   sheet[newCellAddr] = {
-//     t: "s",   // force STRING
-//     v: date
-//   };
-
-//   // Extend sheet range safely
-//   sheet["!ref"] = XLSX.utils.encode_range({
-//     s: range.s,
-//     e: { r: range.e.r, c: newCol }
-//   });
-
-//   XLSX.writeFile(workbook, filePath);
-
-//   return newCol;
-// }
-function formatDateDDMMYYYY(dateStr) {
-  const [yyyy, mm, dd] = dateStr.split("-");
-  return `${dd}-${mm}-${yyyy}`;
 }
 
 function createDate(date) {
@@ -73,20 +80,29 @@ function createDate(date) {
   const range = XLSX.utils.decode_range(sheet["!ref"]);
   const headerRow = 0;
 
-  // 🔍 Check if date already exists
+  // ✅ Normalize incoming date
+  const formattedDate = formatDateDDMMYYYY(date);
+
+  // 🔍 Check if date already exists (SAFE READ)
   for (let c = range.s.c; c <= range.e.c; c++) {
     const addr = XLSX.utils.encode_cell({ r: headerRow, c });
     const cell = sheet[addr];
-    if (cell && String(cell.v) === date) {
+
+    const headerValue = normalizeHeaderCell(cell);
+
+    if (headerValue === formattedDate) {
       return { colIndex: c, existed: true };
     }
   }
 
-  // ➕ Add new date column
+  // ➕ Add new date column (FORCE STRING)
   const newCol = range.e.c + 1;
   const newCellAddr = XLSX.utils.encode_cell({ r: headerRow, c: newCol });
 
-  sheet[newCellAddr] = { t: "s", v: date };
+  sheet[newCellAddr] = {
+    t: "s",          // FORCE STRING
+    v: formattedDate
+  };
 
   sheet["!ref"] = XLSX.utils.encode_range({
     s: range.s,
@@ -98,14 +114,14 @@ function createDate(date) {
   return { colIndex: newCol, existed: false };
 }
 
-
-
 function markAttendance(rowIndex, colIndex, value) {
   const sheet = workbook.Sheets[sheetName];
-  const cell = XLSX.utils.encode_cell({ r: rowIndex, c: colIndex });
-  sheet[cell] = { t: "n", v: value };
+  const cellAddr = XLSX.utils.encode_cell({ r: rowIndex, c: colIndex });
+
+  sheet[cellAddr] = { t: "n", v: value };
   XLSX.writeFile(workbook, filePath);
 }
+
 function getAttendanceForDate(colIndex) {
   const sheet = workbook.Sheets[sheetName];
   const range = XLSX.utils.decode_range(sheet["!ref"]);
@@ -122,11 +138,12 @@ function getAttendanceForDate(colIndex) {
 
   return attendance;
 }
+
 function getAttendanceStats() {
   const sheet = workbook.Sheets[sheetName];
   const data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-  const START_COL = 7; // 8th column (0-based index)
+  const START_COL = 7; // attendance starts from 8th column
   const stats = {};
 
   for (let r = 1; r < data.length; r++) {
@@ -142,15 +159,13 @@ function getAttendanceStats() {
 
     const percent = total > 0 ? Math.round((present / total) * 100) : 0;
 
-    stats[r] = {
-      total,
-      present,
-      percent
-    };
+    stats[r] = { total, present, percent };
   }
 
   return stats;
 }
+
+// ------------------ EXPORTS ------------------
 
 module.exports = {
   openExcel,
@@ -158,6 +173,5 @@ module.exports = {
   createDate,
   markAttendance,
   getAttendanceForDate,
-  getAttendanceStats 
+  getAttendanceStats
 };
-
