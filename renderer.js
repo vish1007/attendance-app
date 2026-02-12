@@ -424,6 +424,7 @@ function bulkMark(value) {
     value === 1
       ? presentBtn.classList.add("active")
       : absentBtn.classList.add("active");
+       updateAttendanceBar(row);
   });
 
   updateCounts();
