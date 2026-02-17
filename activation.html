@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<body style="text-align:center; margin-top:100px; font-family:sans-serif;">
+<h2>Activate Application</h2>
+
+<input id="email" placeholder="Enter your email" />
+<br><br>
+<button onclick="activate()">Request Activation</button>
+
+<script>
+async function activate() {
+  const email = document.getElementById("email").value;
+
+  const status = await window.license.request(email);
+
+  alert("Request sent. Waiting for approval...");
+
+  // Poll every 5 seconds
+  const interval = setInterval(async () => {
+    const check = await window.license.check(email);
+
+    if (check === "APPROVED") {
+      alert("Activation Successful!");
+      clearInterval(interval);
+      location.reload();
+    }
+  }, 5000);
+}
+</script>
+</body>
+</html>

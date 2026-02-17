@@ -1,5 +1,12 @@
-
 const { app, BrowserWindow, Menu, ipcMain } = require("electron");
+
+console.log(app.getPath("userData"));
+
+const axios = require("axios");
+const { machineIdSync } = require("node-machine-id");
+const fs = require("fs");
+
+// const { app, BrowserWindow, Menu, ipcMain } = require("electron");
 
 const path = require("path");
 const drive = require("./googledrive");
@@ -147,7 +154,57 @@ function createWindow() {
   const menu = Menu.buildFromTemplate(menuTemplate);
   Menu.setApplicationMenu(menu);
 
-  mainWindow.loadFile("index.html");
+const license = require("./license");
+
+if (!license.isActivated()) {
+  mainWindow.loadFile("activation.html");
+} else {
+  const savedLicense = JSON.parse(
+    fs.readFileSync(
+      path.join(app.getPath("userData"), "license.json")
+    )
+  );
+
+  // Check server status
+  axios.post(
+    "https://attendance-activation-server.onrender.com/check",
+    { deviceId: savedLicense.deviceId }
+  )
+  .then(async (res) => {
+
+    if (res.data.status === "BLOCKED") {
+      // Delete license if blocked
+      fs.unlinkSync(
+        path.join(app.getPath("userData"), "license.json")
+      );
+      mainWindow.loadFile("activation.html");
+      return;
+    }
+
+    if (res.data.status === "APPROVED") {
+
+      // Send heartbeat (usage tracking)
+      await axios.post(
+        "https://attendance-activation-server.onrender.com/heartbeat",
+        {
+          deviceId: savedLicense.deviceId,
+          version: require("./package.json").version
+        }
+      );
+
+      mainWindow.loadFile("index.html");
+    } else {
+      mainWindow.loadFile("activation.html");
+    }
+
+  })
+  .catch(() => {
+    // If offline → allow access
+    mainWindow.loadFile("index.html");
+  });
+}
+
+
 }
 // ===== GOOGLE DRIVE IPC =====
 ipcMain.handle("drive-connect", async () => {
@@ -168,6 +225,32 @@ ipcMain.handle("drive-upload", async (_, filePath) => {
 });
 ipcMain.handle("set-last-file", (_, filePath) => {
   global.lastExcelFile = filePath;
+});
+ipcMain.handle("request-activation", async (_, email) => {
+  const deviceId = machineIdSync();
+
+  const res = await axios.post(
+    "https://attendance-activation-server.onrender.com/register",
+    { email, deviceId }
+  );
+
+  return res.data.status;
+});
+
+ipcMain.handle("check-activation", async (_, email) => {
+  const deviceId = machineIdSync();
+
+  const res = await axios.post(
+    "https://attendance-activation-server.onrender.com/check",
+    { email, deviceId }
+  );
+
+  if (res.data.status === "APPROVED") {
+    const license = require("./license");
+    license.saveLicense({ email, deviceId });
+  }
+
+  return res.data.status;
 });
 
 

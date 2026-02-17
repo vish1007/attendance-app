@@ -11,7 +11,9 @@
     "build": "electron-builder"
   },
   "dependencies": {
+    "axios": "^1.13.5",
     "googleapis": "^171.4.0",
+    "node-machine-id": "^1.1.12",
     "open": "^11.0.0",
     "xlsx": "^0.18.5"
   },
@@ -20,16 +22,15 @@
     "electron-builder": "^24.13.3"
   },
   "build": {
-  "appId": "com.attendance.app",
-  "productName": "Attendance App",
-  "files": [
-    "**/*",
-    "config.js"
-  ],
-  "win": {
-    "target": "nsis"
-  },
-  "npmRebuild": false
-}
-
+    "appId": "com.attendance.app",
+    "productName": "Attendance App",
+    "files": [
+      "**/*",
+      "config.js"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "npmRebuild": false
+  }
 }

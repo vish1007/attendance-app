@@ -25,3 +25,10 @@ contextBridge.exposeInMainWorld("appState", {
   setLastFile: (filePath) =>
     ipcRenderer.invoke("set-last-file", filePath)
 });
+contextBridge.exposeInMainWorld("license", {
+  request: (email) =>
+    ipcRenderer.invoke("request-activation", email),
+
+  check: (email) =>
+    ipcRenderer.invoke("check-activation", email)
+});
