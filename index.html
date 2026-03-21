@@ -7,13 +7,14 @@
     /* ===== GLOBAL ===== */
     /* ===== BULK ACTION BUTTONS ===== */
 .attendance-box {
-  width: 420px; 
-  flex: 1; /* 🔥 takes remaining space */
+  width: 100%;
+  flex: none;
 }
 .name-row {
   display: flex;
-  align-items: center;
-  gap: 16px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
 }
 .attendance-bar {
   width: 100%;
@@ -310,12 +311,12 @@
 .name {
   font-size: 45px;
   font-weight: 600;
-  margin-bottom: 12px;
+  margin-bottom: 0;
   color: #ffffff;              /* white text */
   background: #2563eb;         /* blue box */
   padding: 10px 16px;
   border-radius: 10px;
-  display: inline-block;
+  display: block;
 }
 
 
