@@ -5,6 +5,7 @@ console.log(app.getPath("userData"));
 const axios = require("axios");
 const { machineIdSync } = require("node-machine-id");
 const fs = require("fs");
+const storage = require("./storage");
 
 // const { app, BrowserWindow, Menu, ipcMain } = require("electron");
 
@@ -17,6 +18,23 @@ let mainWindow;
 let zoomLevel = 1; // default zoom
 const ACTIVATION_SERVER_URL = "https://attendance-activation-server.onrender.com";
 const REQUEST_TIMEOUT_MS = 3000;
+let isQuittingAfterSync = false;
+let quitSyncInFlight = false;
+
+async function syncBeforeQuit() {
+  const filePath = global.lastExcelFile;
+  if (!filePath || quitSyncInFlight) return;
+
+  quitSyncInFlight = true;
+
+  try {
+    await drive.uploadIfConnected(filePath);
+  } catch (err) {
+    console.error("Close-time sync failed:", err.message);
+  } finally {
+    quitSyncInFlight = false;
+  }
+}
 
 function loadWindowFile(fileName) {
   if (!mainWindow || mainWindow.isDestroyed()) return;
@@ -242,6 +260,10 @@ ipcMain.handle("drive-upload", async (_, filePath) => {
 });
 ipcMain.handle("set-last-file", (_, filePath) => {
   global.lastExcelFile = filePath;
+  storage.saveLastFile(filePath);
+});
+ipcMain.handle("get-recent-files", () => {
+  return storage.getRecentFiles();
 });
 ipcMain.handle("request-activation", async (_, email) => {
   const deviceId = machineIdSync();
@@ -275,19 +297,22 @@ ipcMain.handle("check-activation", async (_, email) => {
 
 app.whenReady().then(() => {
   createWindow();
-
-  // optional auto-sync if file path exists
-  if (global.lastExcelFile) {
-    drive.ensureAuth()
-      .then(() => drive.uploadOrReplace(global.lastExcelFile))
-      .catch(() => {});
-  }
 });
 
 
 // ===== MAC SUPPORT =====
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
+});
+
+app.on("before-quit", async event => {
+  if (isQuittingAfterSync) return;
+
+  event.preventDefault();
+  isQuittingAfterSync = true;
+
+  await syncBeforeQuit();
+  app.quit();
 });
 
 app.on("activate", () => {

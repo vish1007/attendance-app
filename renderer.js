@@ -99,20 +99,178 @@ updateCounts();
 let filePath = "";
 let currentDate = "";
 let colIndex = -1;
+let recentFiles = [];
+let attendanceStatsCache = {};
+
+function focusSearchInput() {
+  const searchBox = document.getElementById("searchBox");
+  const searchInput = document.getElementById("searchInput");
+  if (!searchBox || !searchInput) return;
+
+  searchBox.style.display = "block";
+  searchInput.disabled = false;
+
+  setTimeout(() => {
+    searchInput.focus();
+    searchInput.select();
+  }, 0);
+}
+
+function setDefaultDateIfEmpty() {
+  const dateInput = document.getElementById("date");
+  if (!dateInput || dateInput.value) return;
+
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+
+  dateInput.value = `${year}-${month}-${day}`;
+}
+
+function filterStudents(query) {
+  const normalizedQuery = query.toLowerCase().trim();
+  const cards = document.querySelectorAll(".student-card");
+
+  cards.forEach(card => {
+    const name = card.querySelector(".name")?.innerText.toLowerCase() || "";
+    const appIdText = [...card.querySelectorAll(".meta")]
+      .find(m => m.innerText.includes("App.ID"))
+      ?.innerText.toLowerCase() || "";
+
+    if (
+      !normalizedQuery ||
+      name.includes(normalizedQuery) ||
+      appIdText.includes(normalizedQuery)
+    ) {
+      card.classList.remove("hidden");
+    } else {
+      card.classList.add("hidden");
+    }
+  });
+}
+
+function cloneAttendanceStats(stats = {}) {
+  const clonedStats = {};
+
+  Object.entries(stats).forEach(([row, value]) => {
+    clonedStats[row] = {
+      total: Number(value?.total || 0),
+      present: Number(value?.present || 0),
+      percent: Number(value?.percent || 0)
+    };
+  });
+
+  return clonedStats;
+}
+
+function updateCachedAttendanceStats(row, nextValue) {
+  const key = String(row);
+  const previousValue = attendanceState[row];
+  const stats = attendanceStatsCache[key] || { total: 0, present: 0, percent: 0 };
+
+  if (previousValue === nextValue) {
+    attendanceStatsCache[key] = stats;
+    return;
+  }
+
+  if (previousValue === undefined) {
+    stats.total += 1;
+  }
+
+  if (previousValue === 1) {
+    stats.present = Math.max(0, stats.present - 1);
+  }
+
+  if (nextValue === 1) {
+    stats.present += 1;
+  }
+
+  stats.percent = stats.total > 0
+    ? Math.round((stats.present / stats.total) * 100)
+    : 0;
+
+  attendanceStatsCache[key] = stats;
+}
+
+function getFileName(fullPath) {
+  if (!fullPath) return "";
+  const parts = fullPath.split(/[/\\]/);
+  return parts[parts.length - 1] || fullPath;
+}
+
+function updateCurrentFileLabel() {
+  const currentFile = document.getElementById("currentFile");
+  if (!currentFile) return;
+
+  if (!filePath) {
+    currentFile.style.display = "none";
+    currentFile.textContent = "";
+    return;
+  }
+
+  currentFile.style.display = "block";
+  currentFile.textContent = `Selected file: ${filePath}`;
+}
+
+function renderRecentFiles() {
+  const section = document.getElementById("recentFilesSection");
+  const list = document.getElementById("recentFilesList");
+  if (!section || !list) return;
+
+  list.innerHTML = "";
+
+  if (!recentFiles.length) {
+    section.style.display = "none";
+    return;
+  }
+
+  section.style.display = "block";
+
+  recentFiles.forEach(path => {
+    const button = document.createElement("button");
+    button.className = "recent-file-btn";
+    button.type = "button";
+    button.innerHTML = `
+      <span class="recent-file-name">${getFileName(path)}</span>
+      <span class="recent-file-path">${path}</span>
+    `;
+    button.onclick = () => {
+      openSelectedFile(path);
+    };
+
+    list.appendChild(button);
+  });
+}
+
+async function refreshRecentFiles() {
+  recentFiles = await window.appState.getRecentFiles();
+  renderRecentFiles();
+}
+
+async function openSelectedFile(selectedPath) {
+  if (!selectedPath) return;
+
+  filePath = selectedPath;
+  window.api.openExcel(filePath);
+  await window.appState.setLastFile(filePath);
+  await refreshRecentFiles();
+  updateCurrentFileLabel();
+}
 
 document.getElementById("file").addEventListener("change", e => {
   if (!e.target.files.length) return;
 
-  filePath = e.target.files[0].path;
-  window.api.openExcel(filePath);
-   window.appState.setLastFile(filePath);
-
+  openSelectedFile(e.target.files[0].path);
 });
 
 document.getElementById("startBtn").addEventListener("click", start);
 
 function start() {
-  document.getElementById("searchBox").style.display = "block";
+  if (!filePath) {
+    alert("Please select an Excel file or choose one from Recent Files");
+    return;
+  }
 
   const selectedDate = document.getElementById("date").value;
   if (!selectedDate) {
@@ -120,11 +278,15 @@ function start() {
     return;
   }
 
+  focusSearchInput();
+
   const result = window.api.createDate(selectedDate);
   colIndex = result.colIndex;
+  document.getElementById("students").style.display = "block";
 
   const students = window.api.getStudents();
   const attendanceStats = window.api.getAttendanceStats();
+  attendanceStatsCache = cloneAttendanceStats(attendanceStats);
 
   const previousAttendance = window.api.getAttendanceForDate(colIndex);
 
@@ -191,6 +353,7 @@ function render(data, previousAttendance = {}, attendanceStats = {}) {
   const container = document.getElementById("students");
   container.innerHTML = "";
   attendanceState = {};
+  attendanceStatsCache = cloneAttendanceStats(attendanceStats);
   updateCounts();
 
   data.forEach((r, i) => {
@@ -247,11 +410,11 @@ function render(data, previousAttendance = {}, attendanceStats = {}) {
 }
 
 function updateAttendanceBar(row) {
-  const stats = window.api.getAttendanceStats();
   const card = document.querySelectorAll(".student-card")[row - 1];
-  if (!card || !stats[row]) return;
+  const stats = attendanceStatsCache[String(row)];
+  if (!card || !stats) return;
 
-  const percent = stats[row].percent;
+  const percent = stats.percent;
 
   const fill = card.querySelector(".attendance-fill");
   const text = card.querySelector(".attendance-text");
@@ -282,6 +445,8 @@ function updateAttendanceBar(row) {
 function mark(row, value, pBtn, aBtn) {
   if (colIndex === -1) return;
 
+  updateCachedAttendanceStats(row, value);
+
   // Save to Excel
   window.api.markAttendance(row, colIndex, value);
 
@@ -306,6 +471,9 @@ function mark(row, value, pBtn, aBtn) {
 }
 
 window.addEventListener("DOMContentLoaded", () => {
+  refreshRecentFiles();
+  updateCurrentFileLabel();
+  setDefaultDateIfEmpty();
 
   // ===== BULK BUTTONS =====
   const presentBtn = document.getElementById("markAllPresent");
@@ -380,23 +548,24 @@ window.addEventListener("DOMContentLoaded", () => {
       rollIndex = 0;
       speechSynthesis.cancel();
 
-      // 🔙 go HOME
+      // Restore the attendance screen instead of going back to setup.
       backBtn.style.display = "none";
-      document.getElementById("setupControls").style.display = "block";
-      document.getElementById("students").style.display = "none";
-      document.getElementById("bulkControls").style.display = "none";
-      document.getElementById("rollCallControls").style.display = "none";
+      document.getElementById("setupControls").style.display = "none";
+      document.getElementById("students").style.display = "block";
+      document.getElementById("bulkControls").style.display = "block";
+      document.getElementById("rollCallControls").style.display = "flex";
+      document.getElementById("searchBox").style.display = "block";
+      const searchInput = document.getElementById("searchInput");
 
-      // 🔥 IMPORTANT FIX
-      if (filePath) {
-        window.api.openExcel(filePath);
-      }
-
-      // reset cards
+      // Reset card visibility, then restore any active search filter.
       document.querySelectorAll(".student-card").forEach(card => {
         card.classList.remove("hidden");
         card.style.outline = "none";
       });
+
+      if (searchInput) {
+        filterStudents(searchInput.value);
+      }
     };
   }
 
@@ -415,6 +584,7 @@ function bulkMark(value) {
     const presentBtn = card.querySelector(".present");
     const absentBtn = card.querySelector(".absent");
 
+    updateCachedAttendanceStats(row, value);
     window.api.markAttendance(row, colIndex, value);
     attendanceState[row] = value;
 
@@ -451,9 +621,6 @@ document.getElementById("playRoll").onclick = () => {
   document.getElementById("rollBackBtn").style.display = "block";
 
   document.getElementById("setupControls").style.display = "none";
-  if (filePath) {
-  window.api.openExcel(filePath);
-}
 
   document.getElementById("bulkControls").style.display = "none";
   document.getElementById("rollCallControls").style.display = "none";
@@ -489,6 +656,7 @@ function markCurrentStudentAbsent() {
   const absentBtn = card.querySelector(".absent");
 
   // 🔴 Mark ABSENT ONLY (NO PAUSE, NO STOP)
+  updateCachedAttendanceStats(row, 0);
   window.api.markAttendance(row, colIndex, 0);
   attendanceState[row] = 0;
 
@@ -518,6 +686,7 @@ function playNext() {
 
   speakLast4Digits(student.appId);
 
+  updateCachedAttendanceStats(row, 1);
   window.api.markAttendance(row, colIndex, 1);
   attendanceState[row] = 1;
   updateCounts();
@@ -615,29 +784,6 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
-window.addEventListener("keydown", e => {
-  if (e.key.toLowerCase() !== "p") return;
-
-  // 🔥 HARD TOGGLE
-  if (isRollPlaying) {
-    // ⏸ PAUSE
-    isRollPlaying = false;
-
-    if (rollTimer) {
-      clearTimeout(rollTimer);
-      rollTimer = null;
-    }
-
-    console.log("PAUSED at student", rollIndex + 1);
-  } else {
-    // ▶ RESUME
-    isRollPlaying = true;
-    console.log("RESUMED at student", rollIndex + 1);
-    playNext();
-  }
-});
-
-
 function showStudentByIndex(index) {
   if (index < 0 || index >= studentsCache.length) return;
 
@@ -713,25 +859,24 @@ if (key === "p") {
 });
 const searchInput = document.getElementById("searchInput");
 
-searchInput.addEventListener("input", () => {
-  const query = searchInput.value.toLowerCase().trim();
-
-  const cards = document.querySelectorAll(".student-card");
-
-  cards.forEach(card => {
-    const name = card.querySelector(".name")?.innerText.toLowerCase() || "";
-    const appIdText = [...card.querySelectorAll(".meta")]
-      .find(m => m.innerText.includes("App.ID"))
-      ?.innerText.toLowerCase() || "";
-
-    // 🔍 partial match like computer file search
-    if (name.includes(query) || appIdText.includes(query)) {
-      card.classList.remove("hidden");
-    } else {
-      card.classList.add("hidden");
-    }
+if (searchInput) {
+  searchInput.addEventListener("mousedown", e => {
+    e.stopPropagation();
   });
-});
+
+  searchInput.addEventListener("click", e => {
+    e.stopPropagation();
+    searchInput.focus();
+  });
+
+  searchInput.addEventListener("keydown", e => {
+    e.stopPropagation();
+  });
+
+  searchInput.addEventListener("input", () => {
+    filterStudents(searchInput.value);
+  });
+}
 // document.getElementById("rollBackBtn").onclick = () => {
 //   // 🛑 stop roll call
 //   isRollPlaying = false;

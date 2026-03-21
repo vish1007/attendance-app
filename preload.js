@@ -23,7 +23,9 @@ contextBridge.exposeInMainWorld("drive", {
 // ===== APP STATE (LAST FILE) =====
 contextBridge.exposeInMainWorld("appState", {
   setLastFile: (filePath) =>
-    ipcRenderer.invoke("set-last-file", filePath)
+    ipcRenderer.invoke("set-last-file", filePath),
+  getRecentFiles: () =>
+    ipcRenderer.invoke("get-recent-files")
 });
 contextBridge.exposeInMainWorld("license", {
   request: (email) =>

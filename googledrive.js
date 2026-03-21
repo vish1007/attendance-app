@@ -50,6 +50,10 @@ function loadSavedToken() {
   }
 }
 
+function hasSavedToken() {
+  return fs.existsSync(getTokenPath());
+}
+
 async function saveToken(code) {
   const { tokens } = await oauth2Client.getToken(code);
   oauth2Client.setCredentials(tokens);
@@ -181,10 +185,20 @@ async function uploadOrReplace(filePath) {
   });
 }
 
+async function uploadIfConnected(filePath) {
+  if (!hasSavedToken()) return false;
+  if (!loadSavedToken()) return false;
+
+  await uploadOrReplace(filePath);
+  return true;
+}
+
 /* ===================== EXPORTS ===================== */
 
 module.exports = {
   ensureAuth,
   uploadOrReplace,
+  uploadIfConnected,
+  hasSavedToken,
   disconnect
 };
