@@ -202,8 +202,14 @@
       gap: 10px;
     }
 
+    .recent-file-item {
+      display: flex;
+      gap: 10px;
+      align-items: stretch;
+    }
+
     .recent-file-btn {
-      width: 100%;
+      flex: 1;
       text-align: left;
       padding: 14px 16px;
       border-radius: 12px;
@@ -233,6 +239,25 @@
       font-size: 13px;
       color: #6b7280;
       word-break: break-all;
+    }
+
+    .recent-file-remove {
+      min-width: 92px;
+      padding: 0 16px;
+      border: 1px solid #fecaca;
+      border-radius: 12px;
+      background: #fff1f2;
+      color: #b91c1c;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .recent-file-remove:hover {
+      background: #ffe4e6;
+      transform: translateY(-1px);
+      box-shadow: 0 8px 18px rgba(185, 28, 28, 0.14);
     }
 
     .search-box {
@@ -391,6 +416,25 @@
   box-shadow: 0 6px 16px rgba(0,0,0,0.25);
 }
 
+.home-btn {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+
+  padding: 10px 18px;
+  font-size: 18px;
+  font-weight: 600;
+
+  background: #ffffff;
+  color: #111827;
+  border-radius: 999px;
+  border: none;
+
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+}
+
   </style>
 </head>
 
@@ -467,6 +511,9 @@
   ⬅ Back
 </button>
 <!-- 🎙 VOICE SETTINGS MODAL -->
+  <button id="homeBtn" class="home-btn" style="display:none;">
+  Home
+</button>
 <div id="voiceSettingsModal" style="
   display:none;
   position:fixed;

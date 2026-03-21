@@ -81,8 +81,27 @@ function getRecentFiles() {
   return recentFiles;
 }
 
+function removeRecentFile(excelPath) {
+  const data = readStorage();
+  const filteredFiles = getValidRecentFiles(
+    data.recentFiles.filter(entry => entry !== excelPath)
+  );
+
+  const nextCurrentFile = data.file === excelPath
+    ? (filteredFiles[0] || "")
+    : data.file;
+
+  writeStorage({
+    file: nextCurrentFile,
+    recentFiles: filteredFiles
+  });
+
+  return filteredFiles;
+}
+
 module.exports = {
   saveLastFile,
   getLastFile,
-  getRecentFiles
+  getRecentFiles,
+  removeRecentFile
 };

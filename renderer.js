@@ -102,6 +102,46 @@ let colIndex = -1;
 let recentFiles = [];
 let attendanceStatsCache = {};
 
+function resetAttendanceWorkspace() {
+  isRollPlaying = false;
+
+  if (rollTimer) {
+    clearTimeout(rollTimer);
+    rollTimer = null;
+  }
+
+  rollIndex = 0;
+  colIndex = -1;
+  studentsCache = [];
+  attendanceState = {};
+  attendanceStatsCache = {};
+  speechSynthesis.cancel();
+
+  const students = document.getElementById("students");
+  const setupControls = document.getElementById("setupControls");
+  const bulkControls = document.getElementById("bulkControls");
+  const rollCallControls = document.getElementById("rollCallControls");
+  const searchBox = document.getElementById("searchBox");
+  const searchInput = document.getElementById("searchInput");
+  const backBtn = document.getElementById("rollBackBtn");
+  const homeBtn = document.getElementById("homeBtn");
+
+  if (students) {
+    students.innerHTML = "";
+    students.style.display = "none";
+  }
+
+  if (setupControls) setupControls.style.display = "block";
+  if (bulkControls) bulkControls.style.display = "none";
+  if (rollCallControls) rollCallControls.style.display = "none";
+  if (searchBox) searchBox.style.display = "none";
+  if (backBtn) backBtn.style.display = "none";
+  if (homeBtn) homeBtn.style.display = "none";
+  if (searchInput) searchInput.value = "";
+
+  updateCounts();
+}
+
 function focusSearchInput() {
   const searchBox = document.getElementById("searchBox");
   const searchInput = document.getElementById("searchInput");
@@ -228,6 +268,9 @@ function renderRecentFiles() {
   section.style.display = "block";
 
   recentFiles.forEach(path => {
+    const item = document.createElement("div");
+    item.className = "recent-file-item";
+
     const button = document.createElement("button");
     button.className = "recent-file-btn";
     button.type = "button";
@@ -236,10 +279,29 @@ function renderRecentFiles() {
       <span class="recent-file-path">${path}</span>
     `;
     button.onclick = () => {
-      openSelectedFile(path);
+      openSelectedFile(path, { autoStart: true });
     };
 
-    list.appendChild(button);
+    const removeButton = document.createElement("button");
+    removeButton.className = "recent-file-remove";
+    removeButton.type = "button";
+    removeButton.textContent = "Remove";
+    removeButton.onclick = async event => {
+      event.stopPropagation();
+      await window.appState.removeRecentFile(path);
+
+      if (filePath === path) {
+        filePath = "";
+        resetAttendanceWorkspace();
+        updateCurrentFileLabel();
+      }
+
+      await refreshRecentFiles();
+    };
+
+    item.appendChild(button);
+    item.appendChild(removeButton);
+    list.appendChild(item);
   });
 }
 
@@ -248,14 +310,35 @@ async function refreshRecentFiles() {
   renderRecentFiles();
 }
 
-async function openSelectedFile(selectedPath) {
+async function openSelectedFile(selectedPath, options = {}) {
   if (!selectedPath) return;
+  const { autoStart = false } = options;
 
+  resetAttendanceWorkspace();
   filePath = selectedPath;
-  window.api.openExcel(filePath);
+  try {
+    window.api.openExcel(filePath);
+  } catch (error) {
+    alert(`Could not open Excel file.\n\n${error.message}`);
+    filePath = "";
+    updateCurrentFileLabel();
+    return;
+  }
+
+  const activeWorkbookPath = window.api.getOpenFilePath();
+
+  if (activeWorkbookPath !== filePath) {
+    alert("The selected Excel file could not be opened correctly.");
+    return;
+  }
+
   await window.appState.setLastFile(filePath);
   await refreshRecentFiles();
   updateCurrentFileLabel();
+
+  if (autoStart) {
+    start();
+  }
 }
 
 document.getElementById("file").addEventListener("change", e => {
@@ -279,16 +362,30 @@ function start() {
   }
 
   focusSearchInput();
-
-  const result = window.api.createDate(selectedDate);
+  let result;
+  try {
+    result = window.api.createDate(selectedDate);
+  } catch (error) {
+    alert(`Could not prepare attendance in the Excel file.\n\n${error.message}`);
+    return;
+  }
   colIndex = result.colIndex;
   document.getElementById("students").style.display = "block";
 
-  const students = window.api.getStudents();
-  const attendanceStats = window.api.getAttendanceStats();
-  attendanceStatsCache = cloneAttendanceStats(attendanceStats);
+  let students;
+  let attendanceStats;
+  let previousAttendance;
 
-  const previousAttendance = window.api.getAttendanceForDate(colIndex);
+  try {
+    students = window.api.getStudents();
+    attendanceStats = window.api.getAttendanceStats();
+    previousAttendance = window.api.getAttendanceForDate(colIndex);
+  } catch (error) {
+    alert(`Could not read attendance data from the Excel file.\n\n${error.message}`);
+    return;
+  }
+
+  attendanceStatsCache = cloneAttendanceStats(attendanceStats);
 
   if (result.existed) {
     const choice = confirm(
@@ -304,6 +401,10 @@ function start() {
 }));
 
 document.getElementById("rollCallControls").style.display = "flex";
+  const homeBtn = document.getElementById("homeBtn");
+  if (homeBtn) {
+    homeBtn.style.display = "block";
+  }
 
 
   // 🔥 FORCE SHOW BULK BUTTONS
@@ -448,7 +549,18 @@ function mark(row, value, pBtn, aBtn) {
   updateCachedAttendanceStats(row, value);
 
   // Save to Excel
-  window.api.markAttendance(row, colIndex, value);
+  let savedFilePath;
+  try {
+    savedFilePath = window.api.markAttendance(row, colIndex, value);
+  } catch (error) {
+    alert(`Could not save attendance to the Excel file.\n\n${error.message}`);
+    return;
+  }
+
+  if (savedFilePath !== filePath) {
+    alert("Attendance was not saved to the selected Excel file.");
+    return;
+  }
 
   // Save locally for counting
   attendanceState[row] = value;
@@ -534,6 +646,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   // ===== ROLL CALL BACK BUTTON =====
   const backBtn = document.getElementById("rollBackBtn");
+  const homeBtn = document.getElementById("homeBtn");
 
   if (backBtn) {
     backBtn.onclick = () => {
@@ -555,6 +668,9 @@ window.addEventListener("DOMContentLoaded", () => {
       document.getElementById("bulkControls").style.display = "block";
       document.getElementById("rollCallControls").style.display = "flex";
       document.getElementById("searchBox").style.display = "block";
+      if (homeBtn) {
+        homeBtn.style.display = "block";
+      }
       const searchInput = document.getElementById("searchInput");
 
       // Reset card visibility, then restore any active search filter.
@@ -566,6 +682,14 @@ window.addEventListener("DOMContentLoaded", () => {
       if (searchInput) {
         filterStudents(searchInput.value);
       }
+    };
+  }
+
+  if (homeBtn) {
+    homeBtn.onclick = async () => {
+      resetAttendanceWorkspace();
+      updateCurrentFileLabel();
+      await refreshRecentFiles();
     };
   }
 
@@ -585,7 +709,17 @@ function bulkMark(value) {
     const absentBtn = card.querySelector(".absent");
 
     updateCachedAttendanceStats(row, value);
-    window.api.markAttendance(row, colIndex, value);
+    let savedFilePath;
+    try {
+      savedFilePath = window.api.markAttendance(row, colIndex, value);
+    } catch (error) {
+      alert(`Could not save attendance to the Excel file.\n\n${error.message}`);
+      return;
+    }
+    if (savedFilePath !== filePath) {
+      alert("Attendance was not saved to the selected Excel file.");
+      return;
+    }
     attendanceState[row] = value;
 
     presentBtn.classList.remove("active");
@@ -619,6 +753,10 @@ function speakLast4Digits(appId) {
 document.getElementById("playRoll").onclick = () => {
   // 🔥 Hide setup UI
   document.getElementById("rollBackBtn").style.display = "block";
+  const homeBtn = document.getElementById("homeBtn");
+  if (homeBtn) {
+    homeBtn.style.display = "block";
+  }
 
   document.getElementById("setupControls").style.display = "none";
 
@@ -657,7 +795,17 @@ function markCurrentStudentAbsent() {
 
   // 🔴 Mark ABSENT ONLY (NO PAUSE, NO STOP)
   updateCachedAttendanceStats(row, 0);
-  window.api.markAttendance(row, colIndex, 0);
+  let savedFilePath;
+  try {
+    savedFilePath = window.api.markAttendance(row, colIndex, 0);
+  } catch (error) {
+    alert(`Could not save attendance to the Excel file.\n\n${error.message}`);
+    return;
+  }
+  if (savedFilePath !== filePath) {
+    alert("Attendance was not saved to the selected Excel file.");
+    return;
+  }
   attendanceState[row] = 0;
 
   // Update UI
@@ -687,7 +835,17 @@ function playNext() {
   speakLast4Digits(student.appId);
 
   updateCachedAttendanceStats(row, 1);
-  window.api.markAttendance(row, colIndex, 1);
+  let savedFilePath;
+  try {
+    savedFilePath = window.api.markAttendance(row, colIndex, 1);
+  } catch (error) {
+    alert(`Could not save attendance to the Excel file.\n\n${error.message}`);
+    return;
+  }
+  if (savedFilePath !== filePath) {
+    alert("Attendance was not saved to the selected Excel file.");
+    return;
+  }
   attendanceState[row] = 1;
   updateCounts();
   updateAttendanceBar(row);

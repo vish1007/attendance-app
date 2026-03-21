@@ -4,6 +4,19 @@ const fs = require("fs");
 let workbook;
 let filePath;
 let sheetName;
+
+function ensureWorkbookLoaded() {
+  if (!workbook || !filePath || !sheetName) {
+    throw new Error("No Excel file is currently open.");
+  }
+}
+
+function saveWorkbook() {
+  ensureWorkbookLoaded();
+  XLSX.writeFile(workbook, filePath);
+  return filePath;
+}
+
 function fixHeaderDatesToText() {
   if (!workbook || !sheetName) return;
 
@@ -25,7 +38,7 @@ function fixHeaderDatesToText() {
     }
   }
 
-  XLSX.writeFile(workbook, filePath);
+  saveWorkbook();
 }
 
 function openExcel(path) {
@@ -109,17 +122,18 @@ function createDate(date) {
     e: { r: range.e.r, c: newCol }
   });
 
-  XLSX.writeFile(workbook, filePath);
+  saveWorkbook();
 
   return { colIndex: newCol, existed: false };
 }
 
 function markAttendance(rowIndex, colIndex, value) {
+  ensureWorkbookLoaded();
   const sheet = workbook.Sheets[sheetName];
   const cellAddr = XLSX.utils.encode_cell({ r: rowIndex, c: colIndex });
 
   sheet[cellAddr] = { t: "n", v: value };
-  XLSX.writeFile(workbook, filePath);
+  return saveWorkbook();
 }
 
 function getAttendanceForDate(colIndex) {
@@ -173,5 +187,6 @@ module.exports = {
   createDate,
   markAttendance,
   getAttendanceForDate,
-  getAttendanceStats
+  getAttendanceStats,
+  getOpenFilePath: () => filePath || ""
 };

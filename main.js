@@ -265,6 +265,9 @@ ipcMain.handle("set-last-file", (_, filePath) => {
 ipcMain.handle("get-recent-files", () => {
   return storage.getRecentFiles();
 });
+ipcMain.handle("remove-recent-file", (_, filePath) => {
+  return storage.removeRecentFile(filePath);
+});
 ipcMain.handle("request-activation", async (_, email) => {
   const deviceId = machineIdSync();
 
