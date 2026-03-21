@@ -15,6 +15,52 @@ app.disableHardwareAcceleration();
 
 let mainWindow;
 let zoomLevel = 1; // default zoom
+const ACTIVATION_SERVER_URL = "https://attendance-activation-server.onrender.com";
+const REQUEST_TIMEOUT_MS = 3000;
+
+function loadWindowFile(fileName) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.loadFile(fileName).catch(err => {
+    console.error(`Failed to load ${fileName}:`, err);
+  });
+}
+
+async function verifySavedLicense(savedLicense) {
+  try {
+    const res = await axios.post(
+      `${ACTIVATION_SERVER_URL}/check`,
+      { deviceId: savedLicense.deviceId },
+      { timeout: REQUEST_TIMEOUT_MS }
+    );
+
+    if (res.data.status === "BLOCKED") {
+      const licensePath = path.join(app.getPath("userData"), "license.json");
+      if (fs.existsSync(licensePath)) {
+        fs.unlinkSync(licensePath);
+      }
+      loadWindowFile("activation.html");
+      return;
+    }
+
+    if (res.data.status !== "APPROVED") {
+      loadWindowFile("activation.html");
+      return;
+    }
+
+    axios.post(
+      `${ACTIVATION_SERVER_URL}/heartbeat`,
+      {
+        deviceId: savedLicense.deviceId,
+        version: require("./package.json").version
+      },
+      { timeout: REQUEST_TIMEOUT_MS }
+    ).catch(err => {
+      console.error("Heartbeat failed:", err.message);
+    });
+  } catch (err) {
+    console.error("License verification skipped:", err.message);
+  }
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -157,51 +203,22 @@ function createWindow() {
 const license = require("./license");
 
 if (!license.isActivated()) {
-  mainWindow.loadFile("activation.html");
+  loadWindowFile("activation.html");
 } else {
-  const savedLicense = JSON.parse(
-    fs.readFileSync(
-      path.join(app.getPath("userData"), "license.json")
-    )
-  );
-
-  // Check server status
-  axios.post(
-    "https://attendance-activation-server.onrender.com/check",
-    { deviceId: savedLicense.deviceId }
-  )
-  .then(async (res) => {
-
-    if (res.data.status === "BLOCKED") {
-      // Delete license if blocked
-      fs.unlinkSync(
+  try {
+    const savedLicense = JSON.parse(
+      fs.readFileSync(
         path.join(app.getPath("userData"), "license.json")
-      );
-      mainWindow.loadFile("activation.html");
-      return;
-    }
+      )
+    );
 
-    if (res.data.status === "APPROVED") {
-
-      // Send heartbeat (usage tracking)
-      await axios.post(
-        "https://attendance-activation-server.onrender.com/heartbeat",
-        {
-          deviceId: savedLicense.deviceId,
-          version: require("./package.json").version
-        }
-      );
-
-      mainWindow.loadFile("index.html");
-    } else {
-      mainWindow.loadFile("activation.html");
-    }
-
-  })
-  .catch(() => {
-    // If offline → allow access
-    mainWindow.loadFile("index.html");
-  });
+    // Open immediately, then verify in the background.
+    loadWindowFile("index.html");
+    verifySavedLicense(savedLicense);
+  } catch (err) {
+    console.error("Invalid saved license:", err);
+    loadWindowFile("activation.html");
+  }
 }
 
 
@@ -230,8 +247,9 @@ ipcMain.handle("request-activation", async (_, email) => {
   const deviceId = machineIdSync();
 
   const res = await axios.post(
-    "https://attendance-activation-server.onrender.com/register",
-    { email, deviceId }
+    `${ACTIVATION_SERVER_URL}/register`,
+    { email, deviceId },
+    { timeout: REQUEST_TIMEOUT_MS }
   );
 
   return res.data.status;
@@ -241,8 +259,9 @@ ipcMain.handle("check-activation", async (_, email) => {
   const deviceId = machineIdSync();
 
   const res = await axios.post(
-    "https://attendance-activation-server.onrender.com/check",
-    { email, deviceId }
+    `${ACTIVATION_SERVER_URL}/check`,
+    { email, deviceId },
+    { timeout: REQUEST_TIMEOUT_MS }
   );
 
   if (res.data.status === "APPROVED") {
