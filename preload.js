@@ -12,7 +12,9 @@ contextBridge.exposeInMainWorld("api", {
   getOpenFilePath: excel.getOpenFilePath,
 
   onOpenVoiceSettings: (callback) =>
-    ipcRenderer.on("open-voice-settings", callback)
+    ipcRenderer.on("open-voice-settings", callback),
+  onOpenAppearanceSettings: (callback) =>
+    ipcRenderer.on("open-appearance-settings", callback)
 });
 
 // ===== GOOGLE DRIVE API =====
@@ -28,7 +30,15 @@ contextBridge.exposeInMainWorld("appState", {
   getRecentFiles: () =>
     ipcRenderer.invoke("get-recent-files"),
   removeRecentFile: (filePath) =>
-    ipcRenderer.invoke("remove-recent-file", filePath)
+    ipcRenderer.invoke("remove-recent-file", filePath),
+  getTheme: () =>
+    ipcRenderer.invoke("get-theme"),
+  setTheme: (theme) =>
+    ipcRenderer.invoke("set-theme", theme),
+  getBranding: () =>
+    ipcRenderer.invoke("get-branding"),
+  setBranding: (branding) =>
+    ipcRenderer.invoke("set-branding", branding)
 });
 contextBridge.exposeInMainWorld("license", {
   request: (email) =>

@@ -4,11 +4,30 @@ const path = require("path");
 
 const storagePath = path.join(app.getPath("userData"), "lastFile.json");
 const MAX_RECENT_FILES = 8;
+const DEFAULT_BRANDING = {
+  title: "Attendance Management System",
+  logoPath: "assets/logo.png",
+  backgroundPath: "assets/bg.jpg"
+};
+
+function normalizeBranding(branding) {
+  return {
+    title: typeof branding?.title === "string" && branding.title.trim()
+      ? branding.title.trim()
+      : DEFAULT_BRANDING.title,
+    logoPath: typeof branding?.logoPath === "string" && branding.logoPath.trim()
+      ? branding.logoPath
+      : DEFAULT_BRANDING.logoPath,
+    backgroundPath: typeof branding?.backgroundPath === "string" && branding.backgroundPath.trim()
+      ? branding.backgroundPath
+      : DEFAULT_BRANDING.backgroundPath
+  };
+}
 
 function readStorage() {
   try {
     if (!fs.existsSync(storagePath)) {
-      return { file: "", recentFiles: [] };
+      return { file: "", recentFiles: [], theme: "professional" };
     }
 
     const data = JSON.parse(fs.readFileSync(storagePath, "utf8"));
@@ -16,10 +35,17 @@ function readStorage() {
 
     return {
       file: data.file || "",
-      recentFiles
+      recentFiles,
+      theme: data.theme === "classic" ? "classic" : "professional",
+      branding: normalizeBranding(data.branding)
     };
   } catch (err) {
-    return { file: "", recentFiles: [] };
+    return {
+      file: "",
+      recentFiles: [],
+      theme: "professional",
+      branding: { ...DEFAULT_BRANDING }
+    };
   }
 }
 
@@ -51,7 +77,9 @@ function saveLastFile(excelPath) {
 
   writeStorage({
     file: recentFiles[0] || excelPath,
-    recentFiles
+    recentFiles,
+    theme: data.theme,
+    branding: data.branding
   });
 }
 
@@ -62,7 +90,9 @@ function getLastFile() {
   if (recentFiles.length !== data.recentFiles.length || data.file !== (recentFiles[0] || "")) {
     writeStorage({
       file: recentFiles[0] || "",
-      recentFiles
+      recentFiles,
+      theme: data.theme,
+      branding: data.branding
     });
   }
 
@@ -75,7 +105,9 @@ function getRecentFiles() {
 
   writeStorage({
     file: recentFiles[0] || "",
-    recentFiles
+    recentFiles,
+    theme: data.theme,
+    branding: data.branding
   });
 
   return recentFiles;
@@ -93,15 +125,57 @@ function removeRecentFile(excelPath) {
 
   writeStorage({
     file: nextCurrentFile,
-    recentFiles: filteredFiles
+    recentFiles: filteredFiles,
+    theme: data.theme,
+    branding: data.branding
   });
 
   return filteredFiles;
+}
+
+function getTheme() {
+  return readStorage().theme;
+}
+
+function saveTheme(theme) {
+  const data = readStorage();
+  const nextTheme = theme === "classic" ? "classic" : "professional";
+
+  writeStorage({
+    file: data.file,
+    recentFiles: data.recentFiles,
+    theme: nextTheme,
+    branding: data.branding
+  });
+
+  return nextTheme;
+}
+
+function getBranding() {
+  return readStorage().branding;
+}
+
+function saveBranding(branding) {
+  const data = readStorage();
+  const nextBranding = normalizeBranding(branding);
+
+  writeStorage({
+    file: data.file,
+    recentFiles: data.recentFiles,
+    theme: data.theme,
+    branding: nextBranding
+  });
+
+  return nextBranding;
 }
 
 module.exports = {
   saveLastFile,
   getLastFile,
   getRecentFiles,
-  removeRecentFile
+  removeRecentFile,
+  getTheme,
+  saveTheme,
+  getBranding,
+  saveBranding
 };

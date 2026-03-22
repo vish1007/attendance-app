@@ -132,6 +132,14 @@ function createWindow() {
       label: "Edit",
       submenu: [
         {
+          label: "App Appearance",
+          accelerator: "CmdOrCtrl+E",
+          click: () => {
+            mainWindow.webContents.send("open-appearance-settings");
+          }
+        },
+        { type: "separator" },
+        {
           label: "Voice Settings",
           accelerator: "CmdOrCtrl+V",
           click: () => {
@@ -267,6 +275,18 @@ ipcMain.handle("get-recent-files", () => {
 });
 ipcMain.handle("remove-recent-file", (_, filePath) => {
   return storage.removeRecentFile(filePath);
+});
+ipcMain.handle("get-theme", () => {
+  return storage.getTheme();
+});
+ipcMain.handle("set-theme", (_, theme) => {
+  return storage.saveTheme(theme);
+});
+ipcMain.handle("get-branding", () => {
+  return storage.getBranding();
+});
+ipcMain.handle("set-branding", (_, branding) => {
+  return storage.saveBranding(branding);
 });
 ipcMain.handle("request-activation", async (_, email) => {
   const deviceId = machineIdSync();

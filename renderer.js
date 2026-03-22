@@ -101,6 +101,12 @@ let currentDate = "";
 let colIndex = -1;
 let recentFiles = [];
 let attendanceStatsCache = {};
+let activeTheme = "professional";
+let activeBranding = {
+  title: "Attendance Management System",
+  logoPath: "assets/logo.png",
+  backgroundPath: "assets/bg.jpg"
+};
 
 const fileInput = document.getElementById("file");
 const filePicker = document.getElementById("filePicker");
@@ -109,6 +115,24 @@ const filePickerPanel = document.getElementById("filePickerPanel");
 const browseDeviceBtn = document.getElementById("browseDeviceBtn");
 const filePickerLabel = document.querySelector(".file-picker-label");
 const filePickerSubtext = document.querySelector(".file-picker-subtext");
+const themeSelect = document.getElementById("themeSelect");
+const startupSplash = document.getElementById("startupSplash");
+const splashLogo = document.getElementById("splashLogo");
+const splashTitle = document.getElementById("splashTitle");
+const appLogo = document.getElementById("appLogo");
+const appTitle = document.getElementById("appTitle");
+const appearanceModal = document.getElementById("appearanceModal");
+const customizePanel = document.getElementById("customizePanel");
+const appearanceCloseBtn = document.getElementById("appearanceCloseBtn");
+const titleInput = document.getElementById("titleInput");
+const logoInput = document.getElementById("logoInput");
+const backgroundInput = document.getElementById("backgroundInput");
+const chooseLogoBtn = document.getElementById("chooseLogoBtn");
+const chooseBackgroundBtn = document.getElementById("chooseBackgroundBtn");
+const logoPathLabel = document.getElementById("logoPathLabel");
+const backgroundPathLabel = document.getElementById("backgroundPathLabel");
+const saveBrandingBtn = document.getElementById("saveBrandingBtn");
+const resetBrandingBtn = document.getElementById("resetBrandingBtn");
 
 function resetAttendanceWorkspace() {
   isRollPlaying = false;
@@ -245,6 +269,98 @@ function getFileName(fullPath) {
   if (!fullPath) return "";
   const parts = fullPath.split(/[/\\]/);
   return parts[parts.length - 1] || fullPath;
+}
+
+function setAppearanceModalOpen(isOpen) {
+  if (!appearanceModal) return;
+  appearanceModal.classList.toggle("is-open", isOpen);
+}
+
+function updateBrandingInputs() {
+  if (titleInput) {
+    titleInput.value = activeBranding.title;
+  }
+
+  if (logoPathLabel) {
+    logoPathLabel.textContent = activeBranding.logoPath === "assets/logo.png"
+      ? "Using default logo"
+      : activeBranding.logoPath;
+  }
+
+  if (backgroundPathLabel) {
+    backgroundPathLabel.textContent = activeBranding.backgroundPath === "assets/bg.jpg"
+      ? "Using default background"
+      : activeBranding.backgroundPath;
+  }
+}
+
+function playStartupSplash() {
+  if (!startupSplash) return;
+
+  setTimeout(() => {
+    startupSplash.classList.add("is-exiting");
+  }, 1500);
+
+  setTimeout(() => {
+    startupSplash.classList.add("is-hidden");
+  }, 2300);
+}
+
+function applyBranding(branding = {}) {
+  const logoPath = (branding.logoPath || "assets/logo.png").replace(/\\/g, "/");
+  const backgroundPath = (branding.backgroundPath || "assets/bg.jpg").replace(/\\/g, "/");
+
+  activeBranding = {
+    title: branding.title || "Attendance Management System",
+    logoPath,
+    backgroundPath
+  };
+
+  if (appTitle) {
+    appTitle.textContent = activeBranding.title;
+  }
+
+  if (splashTitle) {
+    splashTitle.textContent = activeBranding.title;
+  }
+
+  if (appLogo) {
+    appLogo.src = activeBranding.logoPath;
+  }
+
+  if (splashLogo) {
+    splashLogo.src = activeBranding.logoPath;
+  }
+
+  document.body.style.backgroundImage = `url("${activeBranding.backgroundPath}")`;
+  updateBrandingInputs();
+}
+
+async function initializeBranding() {
+  try {
+    const savedBranding = await window.appState.getBranding();
+    applyBranding(savedBranding);
+  } catch {
+    applyBranding(activeBranding);
+  }
+}
+
+function applyTheme(theme) {
+  activeTheme = theme === "classic" ? "classic" : "professional";
+  document.body.dataset.theme = activeTheme;
+
+  if (themeSelect) {
+    themeSelect.value = activeTheme;
+  }
+}
+
+async function initializeTheme() {
+  try {
+    const savedTheme = await window.appState.getTheme();
+    applyTheme(savedTheme);
+  } catch {
+    applyTheme("professional");
+  }
 }
 
 function setFilePickerOpen(isOpen) {
@@ -648,9 +764,90 @@ function mark(row, value, pBtn, aBtn) {
 }
 
 window.addEventListener("DOMContentLoaded", () => {
+  initializeTheme();
+  initializeBranding();
+  playStartupSplash();
   refreshRecentFiles();
   updateCurrentFileLabel();
   setDefaultDateIfEmpty();
+
+  if (themeSelect) {
+    themeSelect.onchange = async event => {
+      const nextTheme = event.target.value === "classic" ? "classic" : "professional";
+      applyTheme(nextTheme);
+      await window.appState.setTheme(nextTheme);
+    };
+  }
+
+  if (appearanceCloseBtn) {
+    appearanceCloseBtn.onclick = () => {
+      setAppearanceModalOpen(false);
+    };
+  }
+
+  if (appearanceModal) {
+    appearanceModal.onclick = event => {
+      if (event.target === appearanceModal) {
+        setAppearanceModalOpen(false);
+      }
+    };
+  }
+
+  if (chooseLogoBtn && logoInput) {
+    chooseLogoBtn.onclick = () => logoInput.click();
+  }
+
+  if (chooseBackgroundBtn && backgroundInput) {
+    chooseBackgroundBtn.onclick = () => backgroundInput.click();
+  }
+
+  if (logoInput) {
+    logoInput.onchange = event => {
+      const selectedPath = event.target.files?.[0]?.path;
+      if (!selectedPath) return;
+      applyBranding({ ...activeBranding, logoPath: selectedPath });
+      event.target.value = "";
+    };
+  }
+
+  if (backgroundInput) {
+    backgroundInput.onchange = event => {
+      const selectedPath = event.target.files?.[0]?.path;
+      if (!selectedPath) return;
+      applyBranding({ ...activeBranding, backgroundPath: selectedPath });
+      event.target.value = "";
+    };
+  }
+
+  if (saveBrandingBtn) {
+    saveBrandingBtn.onclick = async () => {
+      const nextBranding = {
+        ...activeBranding,
+        title: titleInput?.value?.trim() || "Attendance Management System"
+      };
+
+      applyBranding(nextBranding);
+      await window.appState.setBranding(nextBranding);
+      alert("App appearance updated.");
+    };
+  }
+
+  if (resetBrandingBtn) {
+    resetBrandingBtn.onclick = async () => {
+      const defaultBranding = {
+        title: "Attendance Management System",
+        logoPath: "assets/logo.png",
+        backgroundPath: "assets/bg.jpg"
+      };
+
+      applyBranding(defaultBranding);
+      await window.appState.setBranding(defaultBranding);
+    };
+  }
+
+  window.api.onOpenAppearanceSettings(() => {
+    setAppearanceModalOpen(true);
+  });
 
   // ===== BULK BUTTONS =====
   const presentBtn = document.getElementById("markAllPresent");

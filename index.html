@@ -25,6 +25,26 @@
       --shadow-sm: 0 10px 20px rgba(15, 23, 42, 0.1);
     }
 
+    body[data-theme="classic"] {
+      --surface: rgba(255, 255, 255, 0.94);
+      --surface-strong: rgba(255, 255, 255, 0.98);
+      --surface-muted: #f8fafc;
+      --line: rgba(203, 213, 225, 0.9);
+      --text: #111827;
+      --text-soft: #374151;
+      --text-muted: #6b7280;
+      --primary: #2563eb;
+      --primary-strong: #1e3a8a;
+      --primary-soft: #eff6ff;
+      --success: #166534;
+      --success-soft: #e8f8ee;
+      --danger: #991b1b;
+      --danger-soft: #fdecec;
+      --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.18);
+      --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.15);
+      --shadow-sm: 0 4px 10px rgba(0, 0, 0, 0.08);
+    }
+
     /* ===== BULK ACTION BUTTONS ===== */
 .attendance-box {
   width: 100%;
@@ -140,9 +160,110 @@
       z-index: 0;
     }
 
+    body[data-theme="classic"]::before {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
     body > * {
       position: relative;
       z-index: 1;
+    }
+
+    .startup-splash {
+      position: fixed;
+      inset: 0;
+      z-index: 20000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at top, rgba(59, 130, 246, 0.22), transparent 34%),
+        linear-gradient(180deg, rgba(5, 16, 31, 0.98) 0%, rgba(10, 22, 39, 0.98) 100%);
+      transition: opacity 0.45s ease, visibility 0.45s ease;
+    }
+
+    .startup-splash::before,
+    .startup-splash::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(160deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+      transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.5s ease;
+    }
+
+    .startup-splash::before {
+      clip-path: polygon(0 0, 100% 0, 62% 100%, 0 100%);
+    }
+
+    .startup-splash::after {
+      clip-path: polygon(38% 0, 100% 0, 100% 100%, 0 100%);
+    }
+
+    .startup-splash.is-exiting::before {
+      transform: translate(-26vw, -12vh) rotate(-10deg);
+      opacity: 0;
+    }
+
+    .startup-splash.is-exiting::after {
+      transform: translate(28vw, 14vh) rotate(10deg);
+      opacity: 0;
+    }
+
+    .startup-splash.is-hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .splash-brand {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+      text-align: center;
+      animation: splashZoomIn 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .splash-logo {
+      width: min(34vw, 240px);
+      max-width: 240px;
+      min-width: 120px;
+      filter: drop-shadow(0 24px 36px rgba(0, 0, 0, 0.32));
+    }
+
+    .splash-title {
+      max-width: 560px;
+      font-size: clamp(28px, 3vw, 44px);
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: #ffffff;
+      text-transform: uppercase;
+    }
+
+    .startup-splash.is-exiting .splash-brand {
+      animation: splashSplitAway 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    @keyframes splashZoomIn {
+      from {
+        opacity: 0;
+        transform: scale(0.88) translateY(22px);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    @keyframes splashSplitAway {
+      to {
+        opacity: 0;
+        transform: scale(1.06) rotate(-4deg) translateY(-24px);
+      }
     }
 
     /* ===== HEADER ===== */
@@ -213,6 +334,131 @@
       border-color: rgba(15, 76, 129, 0.44);
       box-shadow: 0 0 0 4px rgba(15, 76, 129, 0.12);
       background: #ffffff;
+    }
+
+    .theme-row {
+      margin-bottom: 20px;
+    }
+
+    .theme-select {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 100%;
+      padding: 14px 44px 14px 16px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(246, 248, 251, 0.96) 100%);
+      color: var(--text);
+      font-size: 16px;
+      font-weight: 600;
+      box-sizing: border-box;
+      cursor: pointer;
+    }
+
+    .theme-select-wrap {
+      position: relative;
+    }
+
+    .theme-select-wrap::after {
+      content: "▾";
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+      font-size: 15px;
+    }
+
+    .appearance-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      z-index: 10000;
+      padding: 24px;
+    }
+
+    .appearance-modal.is-open {
+      display: block;
+    }
+
+    .appearance-dialog {
+      width: min(620px, calc(100vw - 32px));
+      max-height: calc(100vh - 48px);
+      overflow-y: auto;
+      margin: 24px auto;
+      padding: 24px;
+      border-radius: 24px;
+      background: var(--surface-strong);
+      box-shadow: var(--shadow-lg);
+      border: 1px solid rgba(255, 255, 255, 0.45);
+      backdrop-filter: blur(20px);
+    }
+
+    .appearance-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .appearance-heading {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .appearance-close {
+      min-width: 44px;
+      padding: 10px 14px;
+      border-radius: 12px;
+    }
+
+    .customize-panel {
+      display: block;
+      padding: 0;
+      border-radius: 0;
+      background: transparent;
+      border: none;
+      text-align: left;
+      margin: 0;
+    }
+
+    .customize-grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .asset-picker {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .asset-picker button {
+      flex-shrink: 0;
+    }
+
+    .asset-value {
+      flex: 1;
+      min-height: 22px;
+      color: var(--text-muted);
+      font-size: 14px;
+      word-break: break-all;
+    }
+
+    .customize-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .secondary-btn {
+      background: linear-gradient(135deg, #64748b, #475569) !important;
+      box-shadow: 0 12px 24px rgba(71, 85, 105, 0.2) !important;
     }
 
     .visually-hidden {
@@ -689,10 +935,17 @@
 
 <body>
 
+  <div id="startupSplash" class="startup-splash">
+    <div class="splash-brand">
+      <img src="assets/logo.png" class="splash-logo" id="splashLogo">
+      <div class="splash-title" id="splashTitle">Attendance Management System</div>
+    </div>
+  </div>
+
   <!-- ===== HEADER ===== -->
   <div class="header">
-    <img src="assets/logo.png" class="logo">
-    <div class="title">Attendance Management System</div>
+    <img src="assets/logo.png" class="logo" id="appLogo">
+    <div class="title" id="appTitle">Attendance Management System</div>
   </div>
 
   <!-- ===== CONTROLS ===== -->
@@ -767,6 +1020,57 @@
     placeholder="Search by Name or Application ID"
   />
 </div>
+
+  <div id="appearanceModal" class="appearance-modal">
+    <div class="appearance-dialog">
+      <div class="appearance-header">
+        <div class="appearance-heading">App Appearance</div>
+        <button type="button" id="appearanceCloseBtn" class="appearance-close secondary-btn">Close</button>
+      </div>
+
+      <div id="customizePanel" class="customize-panel">
+        <div class="theme-row">
+          <label for="themeSelect">App Theme</label>
+          <div class="theme-select-wrap">
+            <select id="themeSelect" class="theme-select">
+              <option value="professional">Professional</option>
+              <option value="classic">Classic</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="customize-grid">
+          <div>
+            <label for="titleInput">App Name</label>
+            <input type="text" id="titleInput" placeholder="Attendance Management System">
+          </div>
+
+          <div>
+            <label>Logo Image</label>
+            <input type="file" id="logoInput" class="visually-hidden" accept="image/*">
+            <div class="asset-picker">
+              <button type="button" id="chooseLogoBtn">Choose Logo</button>
+              <div id="logoPathLabel" class="asset-value">Using default logo</div>
+            </div>
+          </div>
+
+          <div>
+            <label>Background Image</label>
+            <input type="file" id="backgroundInput" class="visually-hidden" accept="image/*">
+            <div class="asset-picker">
+              <button type="button" id="chooseBackgroundBtn">Choose Background</button>
+              <div id="backgroundPathLabel" class="asset-value">Using default background</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="customize-actions">
+          <button type="button" id="saveBrandingBtn">Save Changes</button>
+          <button type="button" id="resetBrandingBtn" class="secondary-btn">Reset Default</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div class="students-container" id="students"></div>
 
