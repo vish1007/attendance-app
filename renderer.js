@@ -102,6 +102,14 @@ let colIndex = -1;
 let recentFiles = [];
 let attendanceStatsCache = {};
 
+const fileInput = document.getElementById("file");
+const filePicker = document.getElementById("filePicker");
+const filePickerTrigger = document.getElementById("filePickerTrigger");
+const filePickerPanel = document.getElementById("filePickerPanel");
+const browseDeviceBtn = document.getElementById("browseDeviceBtn");
+const filePickerLabel = document.querySelector(".file-picker-label");
+const filePickerSubtext = document.querySelector(".file-picker-subtext");
+
 function resetAttendanceWorkspace() {
   isRollPlaying = false;
 
@@ -239,18 +247,49 @@ function getFileName(fullPath) {
   return parts[parts.length - 1] || fullPath;
 }
 
+function setFilePickerOpen(isOpen) {
+  if (!filePickerTrigger || !filePickerPanel) return;
+
+  filePickerTrigger.classList.toggle("is-open", isOpen);
+  filePickerPanel.classList.toggle("is-open", isOpen);
+  filePickerTrigger.setAttribute("aria-expanded", String(isOpen));
+}
+
 function updateCurrentFileLabel() {
   const currentFile = document.getElementById("currentFile");
-  if (!currentFile) return;
+  const selectedFileName = getFileName(filePath);
 
   if (!filePath) {
-    currentFile.style.display = "none";
-    currentFile.textContent = "";
+    if (currentFile) {
+      currentFile.style.display = "none";
+      currentFile.textContent = "";
+      currentFile.removeAttribute("title");
+    }
+
+    if (filePickerLabel) {
+      filePickerLabel.textContent = "Choose Excel File";
+    }
+
+    if (filePickerSubtext) {
+      filePickerSubtext.textContent = "Browse your computer or pick a recent file";
+    }
+
     return;
   }
 
-  currentFile.style.display = "block";
-  currentFile.textContent = `Selected file: ${filePath}`;
+  if (currentFile) {
+    currentFile.style.display = "block";
+    currentFile.textContent = `Selected: ${selectedFileName}`;
+    currentFile.title = filePath;
+  }
+
+  if (filePickerLabel) {
+    filePickerLabel.textContent = selectedFileName;
+  }
+
+  if (filePickerSubtext) {
+    filePickerSubtext.textContent = "Choose another file or use a recent one";
+  }
 }
 
 function renderRecentFiles() {
@@ -261,7 +300,8 @@ function renderRecentFiles() {
   list.innerHTML = "";
 
   if (!recentFiles.length) {
-    section.style.display = "none";
+    section.style.display = "block";
+    list.innerHTML = '<div class="recent-files-empty">No recent files yet.</div>';
     return;
   }
 
@@ -279,6 +319,7 @@ function renderRecentFiles() {
       <span class="recent-file-path">${path}</span>
     `;
     button.onclick = () => {
+      setFilePickerOpen(false);
       openSelectedFile(path, { autoStart: true });
     };
 
@@ -335,16 +376,40 @@ async function openSelectedFile(selectedPath, options = {}) {
   await window.appState.setLastFile(filePath);
   await refreshRecentFiles();
   updateCurrentFileLabel();
+  setFilePickerOpen(false);
 
   if (autoStart) {
     start();
   }
 }
 
-document.getElementById("file").addEventListener("change", e => {
+filePickerTrigger?.addEventListener("click", () => {
+  const isOpen = !filePickerPanel?.classList.contains("is-open");
+  setFilePickerOpen(isOpen);
+});
+
+browseDeviceBtn?.addEventListener("click", () => {
+  setFilePickerOpen(false);
+  fileInput?.click();
+});
+
+document.addEventListener("click", event => {
+  if (!filePicker || !filePickerPanel?.classList.contains("is-open")) return;
+  if (filePicker.contains(event.target)) return;
+  setFilePickerOpen(false);
+});
+
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape") {
+    setFilePickerOpen(false);
+  }
+});
+
+fileInput.addEventListener("change", e => {
   if (!e.target.files.length) return;
 
   openSelectedFile(e.target.files[0].path);
+  e.target.value = "";
 });
 
 document.getElementById("startBtn").addEventListener("click", start);

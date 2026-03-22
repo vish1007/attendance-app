@@ -156,6 +156,18 @@
       border: 1px solid #cbd5e1;
     }
 
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
     .controls button {
       font-size: 20px;
       padding: 14px 30px;
@@ -184,9 +196,109 @@
       display: none;
     }
 
+    .file-picker {
+      position: relative;
+      margin-bottom: 20px;
+    }
+
+    .file-picker-trigger {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px 18px;
+      border-radius: 14px;
+      border: 1px solid #d1d5db;
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      color: #111827;
+      cursor: pointer;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    }
+
+    .file-picker-trigger:hover,
+    .file-picker-trigger.is-open {
+      border-color: #2563eb;
+      box-shadow: 0 12px 24px rgba(37, 99, 235, 0.14);
+      transform: translateY(-1px);
+    }
+
+    .file-picker-copy {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .file-picker-label {
+      font-size: 17px;
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .file-picker-subtext {
+      font-size: 13px;
+      color: #6b7280;
+    }
+
+    .file-picker-caret {
+      font-size: 20px;
+      line-height: 1;
+      color: #64748b;
+    }
+
+    .file-picker-panel {
+      display: none;
+      position: absolute;
+      top: calc(100% + 12px);
+      left: 0;
+      right: 0;
+      z-index: 30;
+      padding: 16px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.98);
+      border: 1px solid #dbeafe;
+      box-shadow: 0 24px 48px rgba(15, 23, 42, 0.16);
+      text-align: left;
+    }
+
+    .file-picker-panel.is-open {
+      display: block;
+    }
+
+    .file-picker-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .file-picker-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .browse-device-btn {
+      padding: 10px 16px;
+      border-radius: 10px;
+      border: none;
+      background: #2563eb;
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .browse-device-btn:hover {
+      background: #1d4ed8;
+    }
+
     .recent-files {
-      margin: 20px auto 0;
-      max-width: 600px;
+      margin: 0;
+      max-width: none;
       text-align: left;
       display: none;
     }
@@ -201,6 +313,8 @@
       display: flex;
       flex-direction: column;
       gap: 10px;
+      max-height: 260px;
+      overflow-y: auto;
     }
 
     .recent-file-item {
@@ -259,6 +373,16 @@
       background: #ffe4e6;
       transform: translateY(-1px);
       box-shadow: 0 8px 18px rgba(185, 28, 28, 0.14);
+    }
+
+    .recent-files-empty {
+      padding: 16px;
+      border: 1px dashed #cbd5e1;
+      border-radius: 12px;
+      background: #f8fafc;
+      color: #64748b;
+      font-size: 14px;
+      text-align: center;
     }
 
     .search-box {
@@ -461,13 +585,28 @@
 
   <div class="controls" id="setupControls">
     <label>Select Excel File</label>
-    <input type="file" id="file">
-    <div id="currentFile" class="current-file"></div>
+    <input type="file" id="file" class="visually-hidden" accept=".xlsx,.xls,.csv">
+    <div class="file-picker" id="filePicker">
+      <button type="button" id="filePickerTrigger" class="file-picker-trigger">
+        <span class="file-picker-copy">
+          <span class="file-picker-label">Choose Excel File</span>
+          <span class="file-picker-subtext">Browse your computer or pick a recent file</span>
+        </span>
+        <span class="file-picker-caret">+</span>
+      </button>
 
-    <div id="recentFilesSection" class="recent-files">
-      <h3>Recent Files</h3>
-      <div id="recentFilesList" class="recent-file-list"></div>
+      <div id="filePickerPanel" class="file-picker-panel">
+        <div class="file-picker-actions">
+          <div class="file-picker-title">Recent Files</div>
+          <button type="button" id="browseDeviceBtn" class="browse-device-btn">Browse Device</button>
+        </div>
+
+        <div id="recentFilesSection" class="recent-files">
+          <div id="recentFilesList" class="recent-file-list"></div>
+        </div>
+      </div>
     </div>
+    <div id="currentFile" class="current-file"></div>
 
     <label>Select Date</label>
     <input type="date" id="date">
